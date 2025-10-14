@@ -1,0 +1,10 @@
+defaults:
+  - neural_net
+  - _self_
+
+output: vit.pth
+
+trainer:
+  model_name: vit
+  lr: 1e-5
+  batch_size: 16

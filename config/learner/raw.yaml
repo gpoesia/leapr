@@ -1,0 +1,5 @@
+_target_: representation.deterministic.DeterministicLearner
+
+# Image domain feature options:
+max_image_features: 100    # Set to null for all pixels
+sample_stride: 1           # 1 = all, 2 = every other, 4 = every 4th pixel, etc.

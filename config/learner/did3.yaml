@@ -1,0 +1,7 @@
+_target_: representation.did3.DynamicID3
+
+model: "openai/gpt-4o-mini"
+max_nodes: 1000
+min_samples_split: 10
+min_side_ratio: 0.01
+n_examples: 5  # Number of in-context examples of data points given in the prompt

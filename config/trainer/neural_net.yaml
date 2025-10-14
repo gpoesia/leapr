@@ -1,0 +1,25 @@
+dataset: mnist
+max_size: 200000
+val_ratio: 0.05
+eval_ratio: 0.05
+random_state: 42
+
+domain:
+  domain_name: image_classification
+
+defaults:
+  - ../domain: image_classification
+  - ../wandb
+  - _self_
+
+trainer:
+  _target_: trainer.neural_network_baseline.NeuralNetworkBaselineTrainer
+  initialization: imagenet
+  lr: 1e-4
+  batch_size: 32
+  n_steps: 2000
+  num_classes: 10
+
+job:
+  wandb_entity: socratic
+  wandb_project: real-pros

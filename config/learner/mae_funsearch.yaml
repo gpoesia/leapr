@@ -1,0 +1,19 @@
+_target_: representation.mae_funsearch.MAEFunSearch
+
+model: gpt-4o-mini
+num_iterations: 10
+features_per_iteration: 10
+db_max_samples: 10
+examples_batch_size: 5
+
+results_path: chess_feature_results.json
+prompt_path: chess_feature_prompt.txt
+baseline_feature_name: material_difference
+
+# FIXME: These belong in a separate config file, for the RF.
+n_estimators: 200
+model_architecture: RandomForest
+max_depth: 15
+
+random_state: 42
+improvement_threshold: -100

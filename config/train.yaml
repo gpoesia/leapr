@@ -1,0 +1,19 @@
+dataset: data/lichess-eval.jsonl # data/lichess-eval-5k.jsonl
+
+max_size: 200000
+val_ratio: 0.05
+eval_ratio: 0.05
+random_state: 42
+
+output: null
+
+defaults:
+  - learner: a-funsearch
+  - domain: chess
+  - trainer: random_forest
+  - wandb
+  - _self_
+
+job:
+  wandb_entity: socratic
+  wandb_project: real-pros

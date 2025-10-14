@@ -1,0 +1,19 @@
+dataset: ai_human
+max_size: 10000
+val_ratio: 0.2
+eval_ratio: 0.1
+random_state: 42
+output: null
+
+domain:
+  domain_name: text_classification
+
+defaults:
+  - trainer: zero_shot_llm
+  - ../domain: text_classification
+  - ../wandb
+  - _self_
+
+job:
+  wandb_entity: socratic
+  wandb_project: real-pros

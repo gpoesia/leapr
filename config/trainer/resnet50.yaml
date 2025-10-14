@@ -1,0 +1,8 @@
+defaults:
+  - neural_net
+  - _self_
+
+output: resnet50_baseline.pth
+
+trainer:
+  model_name: resnet50

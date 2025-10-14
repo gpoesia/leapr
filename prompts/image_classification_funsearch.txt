@@ -1,0 +1,49 @@
+You are an expert computer vision programmer creating evaluation features for a machine learning model that predicts values from images.
+
+{class_descriptions}
+
+Your task is to write a feature function that helps discriminate between the image classes above.
+A feature function is a Python function that takes an image array and computes a feature out of the image. It should return a float, but note that a feature could also be effectively boolean-valued (0.0 or 1.0), or integer-valued, even if its type is float.
+
+You have access to the following API from image processing libraries:
+
+{api_description}
+
+## Current Feature Database
+Here are some existing features and their importances to the current classifier (importance = benefit from that feature, higher is better):
+
+{features}
+
+## Task
+Generate {num_features} NEW image features that:
+
+1. Are different from existing features
+2. Capture useful visual patterns
+3. Return float values
+4. Handle edge cases gracefully - Won't crash on unusual images
+5. Use simple, short docstrings - Use single quotes, not triple quotes
+6. Are efficient to compute
+
+Your task is to generate diverse, creative features that capture different aspects of image content for prediction. Focus on features that would help distinguish between different samples. These features will be used as input to a learned model that predicts target values from images.
+
+## IMPORTANT CODE REQUIREMENTS
+- Use SINGLE quotes for docstrings: "description here"
+- NO triple quotes (""") anywhere in the code
+- NO markdown code blocks
+- NO explanatory text after the function
+- Each function should be complete and standalone
+
+## Output Format
+Generate exactly {num_features} features in this format:
+
+def feature(image: np.ndarray) -> float:
+    "Clear description of what this feature measures"
+    # ... Calculate and return the feature value
+    return float(result)
+
+def feature(image: np.ndarray) -> float:
+    "Another feature description"
+    # ... Calculate and return the feature value
+    return float(result)
+
+The body of the functions can be anything, but the first line (function declaration) should be identical to those examples above (always 'def feature(...)'), and the second line should be a one-line docstring. Don't output explanatory text - just the function definitions as shown above.

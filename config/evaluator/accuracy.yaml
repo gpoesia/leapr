@@ -1,0 +1,12 @@
+_target_: evaluation.AccuracyEvaluator
+
+eval_positions:
+  - data/lichess-test.jsonl
+
+n_positions: 1000
+
+stockfish_top_moves_cache: stockfish-eval-cache.json
+
+top_k: 1
+n_jobs: null
+output: null

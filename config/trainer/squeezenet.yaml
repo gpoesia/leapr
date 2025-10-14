@@ -1,0 +1,10 @@
+defaults:
+  - neural_net
+  - _self_
+
+output: squeezenet.pth
+
+trainer:
+  model_name: squeezenet
+  lr: 1e-3
+  batch_size: 64

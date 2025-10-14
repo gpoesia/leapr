@@ -1,0 +1,24 @@
+features_file: results/MAEFunSearch-20250724-034354.json
+dataset: data/lichess-eval.jsonl
+
+# Debugging files:
+# Uncomment for debug run
+# features_file: results/dummy.json # Contains only 2 features
+# dataset: data/lichess-eval-5k.jsonl
+
+max_positions_per_file: 100000
+key: null
+val_ratio: 0.05
+eval_ratio: 0.05
+random_state: 42
+
+defaults:
+  - trainer: random_forest
+  - evaluator: accuracy
+  - policy: value_softmax
+  - wandb
+  - _self_
+
+job:
+  wandb_entity: socratic
+  wandb_project: "real-pros"

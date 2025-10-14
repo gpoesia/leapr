@@ -1,0 +1,7 @@
+_target_: representation.f2.FunSearchLearner
+
+model: "openai/gpt-4o-mini"
+num_iterations: 100
+n_example_top_features: 5
+n_example_random_features: 5
+features_per_iteration: 10

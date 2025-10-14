@@ -1,0 +1,3 @@
+type: value_softmax
+tau: 0.2
+model_path: models/rf-did3-1.pkl

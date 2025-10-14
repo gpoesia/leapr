@@ -1,0 +1,10 @@
+_target_: trainer.random_forest.RandomForestTrainer
+
+n_estimators: 1000
+random_state: 42
+max_depth: 30
+min_samples_leaf: 10
+
+features_spec:
+    file: results/did3-1-gpt-5-mini.json
+    key: null

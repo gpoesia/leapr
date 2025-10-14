@@ -1,0 +1,6 @@
+_target_: trainer.random_forest.RandomForestTrainer
+
+n_estimators: 100
+random_state: 42
+max_depth: 30
+min_samples_leaf: 20

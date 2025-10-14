@@ -1,0 +1,42 @@
+You are an expert text analysis programmer creating evaluation features for a machine learning model that classifies text.
+
+{api_description}
+
+## Current Feature Database
+Here are some existing features and their performance (Performance improvement = benefit from that feature, higher is better):
+
+{features}
+
+## Task
+Generate {num_features} NEW text features that:
+
+1. Are different from existing features
+2. Capture useful textual patterns
+3. Return float values
+4. Handle edge cases gracefully - Won't crash on unusual texts
+5. Use simple, short docstrings - Use single quotes, not triple quotes
+6. Are efficient to compute
+
+Your task is to generate diverse, creative features that capture different aspects of text content for classification. Focus on features that would help distinguish between different text classes. These features will be used as input to a learned model that predicts target values from text.
+
+## IMPORTANT CODE REQUIREMENTS
+- Use SINGLE quotes for docstrings: "description here"
+- NO triple quotes (""") anywhere in the code
+- NO markdown code blocks
+- NO explanatory text after the function
+- Each function should be complete and standalone
+
+## Output Format
+Generate exactly {num_features} features in this format:
+
+def feature(text: str) -> float:
+    "Clear description of what this feature measures"
+    # ... Calculate and return the feature value
+    return float(result)
+
+def feature(text: str) -> float:
+    "Another feature description"
+    # ... Calculate and return the feature value
+    return float(result)
+
+The body of the functions can be anything, but the first line (function declaration) should be identical to those examples above (always 'def feature(...)'), and the second line should be a one-line docstring. Don't output explanatory text - just the function definitions as shown above.

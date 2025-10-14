@@ -1,0 +1,5 @@
+type: MCTS
+simulations: 1000
+c_param: 1.414
+selection_strategy: ucb1
+model_path: null

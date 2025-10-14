@@ -1,0 +1,3 @@
+_target_: trainer.text_classification_baseline.EmbeddingTrainer
+embedding_model: "text-embedding-3-small"
+batch_size: 50

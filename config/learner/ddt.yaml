@@ -1,0 +1,7 @@
+_target_: representation.dynamic_decision_tree.DynamicDecisionTree
+
+model: gpt-4o-mini
+max_nodes: 200
+min_samples_split: 10
+min_side_ratio: 0.01
+prompt_path: "chess_discriminant_feature_prompt.txt"

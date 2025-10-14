@@ -1,0 +1,52 @@
+You are an expert text analysis programmer creating feature functions to help a machine learning model perform text classification.
+
+{class_descriptions}
+
+Your task is to write a feature function that helps discriminate between the text samples given below.
+A feature function is a Python function that takes a text string and computes a feature out of the text. It should return a float, but note that a feature could also be effectively boolean-valued (0.0 or 1.0), or integer-valued, even if its type is float.
+
+You have access to the following API from text processing libraries:
+
+{api_description}
+
+# Task
+Generate {num_features} new text feature functions in Python that:
+
+1. Help us discriminate between different text classes, hopefully with samples before and after the optimal split point having the lowest possible variance between their classifications.
+2. Return a float value given a text string.
+3. Handle edge cases gracefully - won't crash on unusual texts
+
+Your task is to generate diverse, creative features that are relevant to explain the classifications for the text samples shown above. Focus on features that would help distinguish between samples of different classes. These features will be used in this decision tree that will predict the classification of a given text sample. Think about new features that would help such a predictor in the particular cases above, trying to add information that the already existing features shown above are missing.
+
+# Code Requirements
+- Use single quotes for docstrings: "description here"
+- No markdown code blocks
+- No explanatory text after the function
+- Each function should be complete and standalone, and return a float
+
+# Output Format
+Generate exactly {num_features} features in this format:
+
+def feature(text: str) -> float:
+    "Simple, clear description of what this feature measures"
+    # ... Calculate and return the feature value
+    return result
+
+def feature(text: str) -> float:
+    "Another feature description"
+    # ... Calculate and return the feature value
+    return result
+
+The body of the function can be anything, but the first line (function declaration) should be identical to those examples above, and the second line should be a one-line docstring. Don't output explanatory text - just the function definitions as shown above.
+
+# Current decision tree node
+You are currently focusing on features that explain the text classifications in the following subtree of a decision tree:
+
+{subtree_path}
+
+# Text samples
+Here are examples of text samples in this subtree, along with their target classifications:
+
+{examples}
+
+Optimize for producing discriminant features that are novel compared to the existing features used to arrive at this subtree. Focus on explaining the differences between the text samples shown above.

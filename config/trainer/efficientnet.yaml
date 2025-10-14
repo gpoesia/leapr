@@ -1,0 +1,8 @@
+defaults:
+  - neural_net
+  - _self_
+
+output: efficientnet.pth
+
+trainer:
+  model_name: efficientnetv2
