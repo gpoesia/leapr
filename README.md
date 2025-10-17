@@ -2,9 +2,7 @@
 
 This repository contains the implementation corresponding to the following paper:
 
-Programmatic Representation Learning with Language Models
-
-(arXiv link coming soon)
+[Programmatic Representation Learning with Language Models](https://arxiv.org/abs/2510.14825)
 
 LeaPR models are neural network-free machine learning models: they combine *feature functions* represented as (LLM-synthesized) Python functions with *decision tree* predictors learned on top of those features. These models can be trained for any supervised learning task.
 
