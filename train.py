@@ -16,8 +16,7 @@ import trainer
 import policy
 import util
 
-# FIXME: split_dataset should be an util
-from main import split_dataset
+from main import split_dataset, _split_chess_dataset
 from chess_position import load_chess_data
 from image_sample import load_image_data
 from text_sample import load_text_data
@@ -44,28 +43,28 @@ def main(cfg: DictConfig):
     # Load data based on domain
     domain_name = cfg.get("domain", {}).get("domain_name", "chess")
     if domain_name == "image_classification":
-        all_positions, *_ = load_image_data(cfg.dataset)  # returns list[ImageSample]
-        if len(all_positions) > cfg.max_size:
-            all_positions = all_positions[: cfg.max_size]
+        train_positions, evaluation_positions, _ = load_image_data(cfg.dataset)
+        if len(train_positions) > cfg.max_size:
+            train_positions = train_positions[: cfg.max_size]
+        training_positions, validation_positions = split_dataset(
+            train_positions, val_ratio=cfg.val_ratio, random_state=cfg.random_state
+        )
     elif domain_name == "text_classification":
-        all_positions, *_ = load_text_data(cfg.dataset)  # returns list[TextSample]
-        if len(all_positions) > cfg.max_size:
-            all_positions = all_positions[: cfg.max_size]
+        train_positions, evaluation_positions, _ = load_text_data(cfg.dataset)
+        if len(train_positions) > cfg.max_size:
+            train_positions = train_positions[: cfg.max_size]
+        training_positions, validation_positions = split_dataset(
+            train_positions, val_ratio=cfg.val_ratio, random_state=cfg.random_state
+        )
     else:
-        all_positions = load_chess_data(
-            [cfg.dataset], cfg.max_size
-        )  # returns list[ChessPosition]
+        all_positions = load_chess_data([cfg.dataset], cfg.max_size)
+        training_positions, validation_positions, evaluation_positions = _split_chess_dataset(
+            all_positions, cfg.val_ratio, cfg.eval_ratio, cfg.random_state
+        )
 
-    if not all_positions:
+    if not training_positions:
         logger.error("No positions loaded from dataset file.")
         return
-
-    training_positions, validation_positions, evaluation_positions = split_dataset(
-        all_positions,
-        val_ratio=cfg.val_ratio,
-        eval_ratio=cfg.eval_ratio,
-        random_state=cfg.random_state,
-    )
 
     logger.info(
         f"Dataset split: {len(training_positions)} train, "
@@ -92,16 +91,37 @@ def main(cfg: DictConfig):
     # Auto-save results if features file exists
     features_file = cfg.get("trainer", {}).get("features_spec", {}).get("file")
     if features_file:
-        filename = Path(features_file).stem
+        features_path = Path(features_file)
+        filename = features_path.stem
+
+        # Smart version detection
+        version_part = None
+        for part in features_path.parts:
+            if part.startswith('v') and len(part) >= 2 and part[1:].replace('_', '').replace('-',
+                                                                                             '').isalnum():
+                version_part = part
+                break
+
+        if version_part:
+            # Mirror the version structure in models and evals
+            model_path = Path("results/models") / version_part / f"{filename}.pkl"
+            evals_path = Path("results/evals") / version_part / f"{filename}.json"
+        else:
+            # Fallback to root
+            model_path = Path("results/models") / f"{filename}.pkl"
+            evals_path = Path("results/evals") / f"{filename}.json"
+
         model, metrics = result
 
+        # Ensure directories exist
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        evals_path.parent.mkdir(parents=True, exist_ok=True)
+
         # Save model as pickle
-        model_path = Path("results/models") / f"{filename}.pkl"
         with open(model_path, "wb") as f:
             pickle.dump(model, f)
 
         # Save metrics as JSON
-        evals_path = Path("results/evals") / f"{filename}.json"
         with open(evals_path, "w") as f:
             json.dump(metrics, f, indent=2)
 

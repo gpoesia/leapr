@@ -28,17 +28,16 @@ class ChessPosition:
         board: chess.Board,
         evaluation: float,
         move_history: Optional[list[str]] = None,
-        game_phase: Optional[str] = None,  # NEW: Added optional game phase
+        game_phase: Optional[str] = None,
         fen: str = None,
     ):
         self.board = board.copy() if board else None
         self.evaluation = evaluation  # Stockfish evaluation in centipawns
         self.move_history = move_history or []
         self.fen = board.fen() if PARSE_BOARD else fen
-        self.game_phase = game_phase or "unknown"  # NEW: Store game phase
+        self.game_phase = game_phase or "unknown"
 
     def __str__(self):
-        # NEW: Include phase in string representation
         phase_str = f" ({self.game_phase})" if self.game_phase != "unknown" else ""
         return f"FEN: {self.fen}\nEvaluation: {self.evaluation}\nMove History: {' '.join(self.move_history[-10:])}{phase_str}"
 
@@ -139,7 +138,6 @@ def _load_from_json(path: str, max_positions_per_file: int) -> list[ChessPositio
                 # Could parse move history from context if needed
                 pass
 
-            # NEW: Extract game phase if available
             game_phase = position_data.get("game_phase", "unknown")
 
             board = chess.Board(fen) if PARSE_BOARD else None

@@ -97,10 +97,11 @@ def launch_raw(domain_raw: str, dry_run: bool) -> int:
     return run(cmd, dry_run)
 
 
-def launch_train(learner: str, domain_raw: str, model: str, dry_run: bool) -> int:
+def launch_train(learner: str, domain_raw: str, model: str, dry_run: bool, version: str = "v2") -> int:
     domain, dataset = parse_domain_dataset(domain_raw)
     base = format_basename(learner, domain_raw, model)
-    features_path = Path("results/features") / f"{base}.json"
+    
+    features_path = Path(f"results/features/{version}") / f"{base}.json"
 
     if not dry_run and not features_path.exists():
         print(
@@ -191,6 +192,7 @@ def main() -> int:
     )
     p.add_argument("--model", required=False)
     p.add_argument("--output", type=str)
+    p.add_argument("--version", type=str, choices=["v1", "v2"], default="v2", help="Version for train (v1 or v2), defaults to v2")
     p.add_argument("-n", "--dry-run", action="store_true")
     args = p.parse_args()
 
@@ -205,7 +207,7 @@ def main() -> int:
     elif args.raw:
         return launch_raw(args.domain, args.dry_run)
     else:
-        return launch_train(args.learner, args.domain, args.model, args.dry_run)
+        return launch_train(args.learner, args.domain, args.model, args.dry_run, args.version)
 
 
 if __name__ == "__main__":

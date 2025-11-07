@@ -1,17 +1,19 @@
 # Usage:
-#   make -n learn-all -- Will print which LeaPR feature files are still missing
-#   make learn-all -- Runs all LeaPR training jobs:
-#       make results/features/[...].json -- Runs a single LeaPR training job.
-#   make train-all -- Train and evaluate random forest from existing LeaPR-learned features:
-#       make results/evals/[...].json -- Train and evaluate from a single LeaPR feature file
-#   make stockfish-eval -- Evaluate a learned chess value function on Stockfish accuracy
-#       make results/stockfish-evals/method__chess__model.json
+#   make learn-v2 -- Runs all V2 LeaPR training jobs (official test splits - DEFAULT)
+#   make train-v2 -- Train and evaluate from V2 features (official test splits - DEFAULT)
+#   make learn-all -- Runs all V1 LeaPR training jobs (original splits)
+#   make train-all -- Train and evaluate from V1 features (original splits)
 #
 
 MODELS := gpt-5-mini gpt-4o-mini # claude-4-sonnet
 METHODS := did3 funsearch 
 METHODS_WITH_COMBO := did3 funsearch combo
-DOMAINS := chess image_classification_mnist image_classification_fashion_mnist text_classification_ghostbuster
+
+# V1 domains (original splits)
+DOMAINS_V1 := chess image_classification_mnist image_classification_fashion_mnist text_classification_ghostbuster
+
+# V2 domains (official splits - excludes chess)
+DOMAINS_V2 := image_classification_mnist image_classification_fashion_mnist text_classification_ghostbuster
 
 TRANSFER_PAIRS := image_classification_mnist__image_classification_fashion_mnist image_classification_fashion_mnist__image_classification_mnist
 
@@ -20,24 +22,40 @@ NN_MODELS := resnet50 efficientnet
 NN_DATASETS := mnist fashion_mnist
 NN_INITS := random imagenet
 
-FEATURE_TARGETS := $(foreach model,$(MODELS), \
+# V1 targets (original splits)
+FEATURE_TARGETS_V1 := $(foreach model,$(MODELS), \
 			$(foreach method,$(METHODS), \
-				$(foreach domain,$(DOMAINS), \
-					results/features/$(method)__$(domain)__$(model).json)))
+				$(foreach domain,$(DOMAINS_V1), \
+					results/features/v1/$(method)__$(domain)__$(model).json)))
 
-TRAIN_TARGETS := $(foreach model,$(MODELS), \
+TRAIN_TARGETS_V1 := $(foreach model,$(MODELS), \
 			$(foreach method,$(METHODS), \
-				$(foreach domain,$(DOMAINS), \
-					results/evals/$(method)__$(domain)__$(model).json)))
+				$(foreach domain,$(DOMAINS_V1), \
+					results/evals/v1/$(method)__$(domain)__$(model).json)))
+
+# V2 targets (official splits)
+FEATURE_TARGETS_V2 := $(foreach model,$(MODELS), \
+			$(foreach method,$(METHODS), \
+				$(foreach domain,$(DOMAINS_V2), \
+					results/features/v2/$(method)__$(domain)__$(model).json)))
+
+TRAIN_TARGETS_V2 := $(foreach model,$(MODELS), \
+			$(foreach method,$(METHODS), \
+				$(foreach domain,$(DOMAINS_V2), \
+					results/evals/v2/$(method)__$(domain)__$(model).json)))
 
 NN_TARGETS := $(foreach model,$(NN_MODELS), \
 		$(foreach dataset,$(NN_DATASETS), \
 			$(foreach init,$(NN_INITS), \
 				results/nn/$(model)__$(dataset)__$(init).pth)))
 
-COMBO_TARGETS := $(foreach model,$(MODELS), \
-			$(foreach domain,$(DOMAINS), \
-				results/features/combo__$(domain)__$(model).json))
+COMBO_TARGETS_V1 := $(foreach model,$(MODELS), \
+			$(foreach domain,$(DOMAINS_V1), \
+				results/features/v1/combo__$(domain)__$(model).json))
+
+COMBO_TARGETS_V2 := $(foreach model,$(MODELS), \
+			$(foreach domain,$(DOMAINS_V2), \
+				results/features/v2/combo__$(domain)__$(model).json))
 
 TRANSFER_TARGETS := $(foreach model,$(MODELS), \
 			$(foreach method,$(METHODS), \
@@ -52,28 +70,62 @@ CHESS_ACCURACY_TARGETS := $(foreach model,$(MODELS), \
 							$(foreach method,$(METHODS), \
 								results/evals/chess/accuracy/$(method)__$(model).json))
 
-results/features/%.json:
+# V1 feature learning
+results/features/v1/%.json:
 	$(eval parts := $(subst __, ,$*))
 	$(eval method := $(word 1,$(parts)))
 	$(eval domain_dataset := $(word 2,$(parts)))
 	$(eval model := $(word 3,$(parts)))
-	python launch.py --leapr --learner $(method) --domain $(domain_dataset) --model $(model)
+	mkdir -p results/features/v1
+	python launch.py --leapr --learner $(method) --domain $(domain_dataset) --model $(model) --output v1/$*
 
-results/features/combo__%.json:
+# V2 feature learning
+results/features/v2/%.json:
+	$(eval parts := $(subst __, ,$*))
+	$(eval method := $(word 1,$(parts)))
+	$(eval domain_dataset := $(word 2,$(parts)))
+	$(eval model := $(word 3,$(parts)))
+	mkdir -p results/features/v2
+	python launch.py --leapr --learner $(method) --domain $(domain_dataset) --model $(model) --output v2/$*
+
+# V1 combo features
+results/features/v1/combo__%.json:
 	$(eval parts := $(subst __, ,$*))
 	$(eval domain_dataset := $(word 1,$(parts)))
 	$(eval model := $(word 2,$(parts)))
+	mkdir -p results/features/v1
+	python launch.py --combine --output $@ --model $(model) --domain $(domain_dataset)
+
+# V2 combo features
+results/features/v2/combo__%.json:
+	$(eval parts := $(subst __, ,$*))
+	$(eval domain_dataset := $(word 1,$(parts)))
+	$(eval model := $(word 2,$(parts)))
+	mkdir -p results/features/v2
 	python launch.py --combine --output $@ --model $(model) --domain $(domain_dataset)
 
 results/features/raw__%.json:
 	python launch.py --raw --output $@ --domain $*
 
-results/evals/%.json: results/features/%.json
+# V1 training
+results/evals/v1/%.json: results/features/v1/%.json
 	$(eval parts := $(subst __, ,$*))
 	$(eval method := $(word 1,$(parts)))
 	$(eval domain_dataset := $(word 2,$(parts)))
 	$(eval model := $(word 3,$(parts)))
-	python launch.py --train --learner $(method) --domain $(domain_dataset) --model $(model)
+	mkdir -p results/evals/v1
+	mkdir -p results/models/v1
+	python launch.py --train --learner $(method) --domain $(domain_dataset) --model $(model) --version v1
+
+# V2 training (default)
+results/evals/v2/%.json: results/features/v2/%.json
+	$(eval parts := $(subst __, ,$*))
+	$(eval method := $(word 1,$(parts)))
+	$(eval domain_dataset := $(word 2,$(parts)))
+	$(eval model := $(word 3,$(parts)))
+	mkdir -p results/evals/v2
+	mkdir -p results/models/v2
+	python launch.py --train --learner $(method) --domain $(domain_dataset) --model $(model) --version v2
 
 results/evals/transfer/%.json:
 	$(eval parts := $(subst __, ,$*))
@@ -119,11 +171,25 @@ results/evals/chess/accuracy/%.json:
 eval-chess-random-policy:
 	python evaluation.py evaluator=accuracy policy=uniform evaluator.output=results/evals/chess/accuracy/random.json
 
-train-all: $(TRAIN_TARGETS)
+# V2 targets (official splits - DEFAULT)
+train-v2: $(TRAIN_TARGETS_V2)
 
-learn-all: $(FEATURE_TARGETS)
+learn-v2: $(FEATURE_TARGETS_V2)
 
-raw-all: results/features/raw__chess.json # results/features/raw__image_classification_mnist
+combine-v2: $(COMBO_TARGETS_V2)
+
+all-v2: learn-v2 train-v2
+
+# V1 targets (original splits)
+train-all: $(TRAIN_TARGETS_V1)
+
+learn-all: $(FEATURE_TARGETS_V1)
+
+combine-v1: $(COMBO_TARGETS_V1)
+
+all-v1: learn-all train-all
+
+raw-all: results/features/raw__chess.json
 
 image-baselines-all: $(NN_TARGETS)
 
@@ -137,12 +203,10 @@ chess-transformer: results/chess_transformer.pt
 
 funsearch-waterbird: results/features/funsearch__image_classification_waterbird__gpt-5-mini.json
 
-combine: $(COMBO_TARGETS)
-
 transfer: $(TRANSFER_TARGETS)
 
 eval-chess-models: $(CHESS_EVAL_TARGETS) $(CHESS_ACCURACY_TARGETS)
 
-all: train-all learn-all image-baselines-all chess-transformer
+all: all-v2 all-v1 image-baselines-all chess-transformer
 
-.PHONY: all check-features train-all image-baselines-all chess-transformer funsearch-waterbird eval-transformers eval-chess-models
+.PHONY: all train-all learn-all train-v2 learn-v2 all-v1 all-v2 combine-v1 combine-v2 image-baselines-all chess-transformer funsearch-waterbird eval-transformers eval-chess-models

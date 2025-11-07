@@ -8,7 +8,6 @@ random_state: 42
 output: null
 
 defaults:
-  - learner: a-funsearch
   - domain: chess
   - trainer: random_forest
   - wandb

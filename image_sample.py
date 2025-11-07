@@ -24,7 +24,7 @@ class ImageSample:
 
 def load_mnist_data(
     task_type: str = "classification",
-) -> tuple[List[ImageSample], List[str]]:
+) -> tuple[List[ImageSample], List[ImageSample], List[str]]:
     from torchvision import datasets, transforms
 
     logger.info(f"Loading MNIST data")
@@ -36,19 +36,31 @@ def load_mnist_data(
         root="./data", train=False, download=True, transform=transform
     )
 
-    samples = []
-    for dataset in [train_dataset, test_dataset]:
-        for i, (image, label) in enumerate(dataset):
-            image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
-            metadata = {
-                "dataset": "MNIST",
-                "image_id": len(samples),
-                "original_shape": (28, 28),
-                "num_classes": 10,
-                "task_type": task_type,
-            }
-            sample = ImageSample(image_np, int(label), metadata)
-            samples.append(sample)
+    train_samples = []
+    test_samples = []
+    
+    for i, (image, label) in enumerate(train_dataset):
+        image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "MNIST",
+            "image_id": len(train_samples),
+            "original_shape": (28, 28),
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        train_samples.append(ImageSample(image_np, int(label), metadata))
+
+    for i, (image, label) in enumerate(test_dataset):
+        image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "MNIST",
+            "image_id": len(train_samples) + i,
+            "original_shape": (28, 28),
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        test_samples.append(ImageSample(image_np, int(label), metadata))
+        
 
     class_descriptions = [
         "0: digit zero",
@@ -63,12 +75,12 @@ def load_mnist_data(
         "9: digit nine",
     ]
 
-    return samples, class_descriptions
+    return train_samples, test_samples, class_descriptions
 
 
 def load_cifar10_data(
     task_type: str = "classification",
-) -> tuple[List[ImageSample], List[str]]:
+) -> tuple[List[ImageSample], List[ImageSample], List[str]]:
     from torchvision import datasets, transforms
 
     logger.info(f"Loading CIFAR-10 data")
@@ -80,20 +92,31 @@ def load_cifar10_data(
         root="./data", train=False, download=True, transform=transform
     )
 
-    samples = []
-    for dataset in [train_dataset, test_dataset]:
-        for i, (image, label) in enumerate(dataset):
-            # Convert from (3, 32, 32) to (32, 32, 3) and scale to 0-255
-            image_np = (image.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-            metadata = {
-                "dataset": "CIFAR-10",
-                "image_id": len(samples),
-                "original_shape": (32, 32, 3),  # Keep RGB channels
-                "num_classes": 10,
-                "task_type": task_type,
-            }
-            sample = ImageSample(image_np, int(label), metadata)
-            samples.append(sample)
+    train_samples = []
+    test_samples = []
+    
+    for i, (image, label) in enumerate(train_dataset):
+        # Convert from (3, 32, 32) to (32, 32, 3) and scale to 0-255
+        image_np = (image.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "CIFAR-10",
+            "image_id": i,
+            "original_shape": (32, 32, 3),  # Keep RGB channels
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        train_samples.append(ImageSample(image_np, int(label), metadata))
+
+    for i, (image, label) in enumerate(test_dataset):
+        image_np = (image.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "CIFAR-10",
+            "image_id": len(train_samples) + i,
+            "original_shape": (32, 32, 3),
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        test_samples.append(ImageSample(image_np, int(label), metadata))
 
     class_descriptions = [
         "0: airplane",
@@ -108,12 +131,12 @@ def load_cifar10_data(
         "9: truck",
     ]
 
-    return samples, class_descriptions
+    return train_samples, test_samples, class_descriptions
 
 
 def load_fashion_mnist_data(
     task_type: str = "classification",
-) -> tuple[List[ImageSample], List[str]]:
+) -> tuple[List[ImageSample], List[ImageSample], List[str]]:
     from torchvision import datasets, transforms
 
     logger.info(f"Loading Fashion-MNIST data")
@@ -124,19 +147,32 @@ def load_fashion_mnist_data(
     test_dataset = datasets.FashionMNIST(
         root="./data", train=False, download=True, transform=transform
     )
-    samples = []
-    for dataset in [train_dataset, test_dataset]:
-        for i, (image, label) in enumerate(dataset):
-            image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
-            metadata = {
-                "dataset": "Fashion-MNIST",
-                "image_id": len(samples),
-                "original_shape": (28, 28),
-                "num_classes": 10,
-                "task_type": task_type,
-            }
-            sample = ImageSample(image_np, int(label), metadata)
-            samples.append(sample)
+
+    train_samples = []
+    test_samples = []
+
+    for i, (image, label) in enumerate(train_dataset):
+        image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "Fashion-MNIST",
+            "image_id": i,
+            "original_shape": (28, 28),
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        train_samples.append(ImageSample(image_np, int(label), metadata))
+
+    for i, (image, label) in enumerate(test_dataset):
+        image_np = (image.squeeze().numpy() * 255).astype(np.uint8)
+        metadata = {
+            "dataset": "Fashion-MNIST",
+            "image_id": len(train_samples) + i,
+            "original_shape": (28, 28),
+            "num_classes": 10,
+            "task_type": task_type,
+        }
+        test_samples.append(ImageSample(image_np, int(label), metadata))
+
     class_descriptions = [
         "0: T-shirt/top",
         "1: trouser",
@@ -149,12 +185,12 @@ def load_fashion_mnist_data(
         "8: bag",
         "9: ankle boot",
     ]
-    return samples, class_descriptions
+    return train_samples, test_samples, class_descriptions
 
 
 def load_waterbird_data(
     task_type: str = "classification",
-) -> tuple[List[ImageSample], List[str]]:
+) -> tuple[List[ImageSample], List[ImageSample], List[str]]:
     """Load Waterbird dataset for classification."""
     from torchvision import datasets, transforms
     import os
@@ -185,7 +221,9 @@ def load_waterbird_data(
     metadata_path = os.path.join(data_dir, "metadata.csv")
     df = pd.read_csv(metadata_path)
 
-    samples = []
+    train_samples = []
+    test_samples = []
+    
     for idx, row in df.iterrows():
         img_path = os.path.join(data_dir, row["img_filename"])
         if os.path.exists(img_path):
@@ -207,15 +245,19 @@ def load_waterbird_data(
                 "task_type": task_type,
             }
             sample = ImageSample(image_np, binary_label, metadata)
-            samples.append(sample)
+            
+            # Split based on 'split' column (0=train, 1=val, 2=test)
+            if row["split"] == 2:
+                test_samples.append(sample)
+            else:
+                train_samples.append(sample)
 
     class_descriptions = [
         "0: landbird",
         "1: waterbird",
     ]
 
-    return samples, class_descriptions
-
+    return train_samples, test_samples, class_descriptions
 
 # Update the registry type hints
 IMAGE_DATASETS = {
@@ -228,7 +270,7 @@ IMAGE_DATASETS = {
 
 def load_image_data(
     dataset_name: str, task_type: str = "classification"
-) -> tuple[List[ImageSample], List[str]]:
+) -> tuple[List[ImageSample], List[ImageSample], List[str]]:
     """Load any registered image dataset."""
     if dataset_name not in IMAGE_DATASETS:
         raise ValueError(
