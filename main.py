@@ -125,7 +125,8 @@ def main(cfg: DictConfig):
     )
 
     with open(results_path, "w") as out_f:
-        json.dump(features, out_f, indent=2)
+        # used_features = all_features, saving only used_features
+        json.dump({"used_features": features}, out_f, indent=2)
 
     logger.info(f"Wrote results to {results_path}")
 
