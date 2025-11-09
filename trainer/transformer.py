@@ -8,6 +8,8 @@ import os
 import wandb
 import torch
 import torch.nn
+import torch.nn.functional as F
+import torch.special
 import chess
 from tqdm import tqdm
 from transformers import LlamaConfig, LlamaForCausalLM
@@ -28,6 +30,39 @@ PAD = 3
 MAX_LENGTH = 100
 
 
+class HLGaussLoss(torch.nn.Module):
+    """The HL-Gauss by Farebrother et al.
+    Source: https://arxiv.org/pdf/2403.03950
+    """
+    def __init__(self, min_value: float, max_value: float, num_bins: int, sigma: float = None):
+        super().__init__()
+        self.min_value = min_value
+        self.max_value = max_value
+        self.num_bins = num_bins
+        self.sigma = sigma if sigma is not None else 0.75 / num_bins
+        self.support = torch.linspace(0, 1, num_bins + 1, dtype=torch.float32)
+
+    def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return F.cross_entropy(logits, self.transform_to_probs(target))
+
+    def transform_to_probs(self, target: torch.Tensor) -> torch.Tensor:
+        # Normalize targets to [0, 1]
+        target_norm = (target - self.min_value) / (self.max_value - self.min_value)
+        cdf_evals = torch.special.erf(
+            (self.support.to(target.device) - target_norm.unsqueeze(-1))
+            / (torch.sqrt(torch.tensor(2.0)) * self.sigma)
+        )
+        z = cdf_evals[..., -1] - cdf_evals[..., 0]
+        bin_probs = cdf_evals[..., 1:] - cdf_evals[..., :-1]
+        return bin_probs / z.unsqueeze(-1)
+    
+    def transform_from_probs(self, probs: torch.Tensor) -> torch.Tensor:
+        centers = (self.support[:-1] + self.support[1:]) / 2
+        # Denormalize back to [min_value, max_value]
+        normalized = torch.sum(probs * centers.to(probs.device), dim=-1)
+        return normalized * (self.max_value - self.min_value) + self.min_value
+
+
 def win_probability_to_token_index(
         wp: float,  # Between 0 and 100
         n_buckets: int,
@@ -43,10 +78,11 @@ def _token_prefix_for_fen(fen: str) -> list[int]:
 
 
 class ChessTransformer(torch.nn.Module):
-    def __init__(self, bins: int, config: LlamaConfig):
+    def __init__(self, bins: int, config: LlamaConfig, hl_loss: HLGaussLoss = None):
         super().__init__()
         self.n_bins = bins
         self.model = LlamaForCausalLM(config)
+        self.hl_loss = hl_loss
         self.parallel = False
 
         n_gpus = torch.cuda.device_count()
@@ -65,7 +101,6 @@ class ChessTransformer(torch.nn.Module):
 
         self.eval()
         predictions = []
-        bin_weights = 100 * torch.linspace(0, 1, self.n_bins, device=self.model.device)
 
         with torch.no_grad():
             for i in range(0, len(positions), BATCH_SIZE):
@@ -79,7 +114,14 @@ class ChessTransformer(torch.nn.Module):
                 outputs = self.model(X)
                 logits = outputs.logits
                 wp_logits = logits[:, -2, 128:(128 + self.n_bins)]
-                wp_preds = (wp_logits.softmax(dim=-1) * bin_weights).sum(dim=-1)
+                wp_probs = wp_logits.softmax(dim=-1)
+                
+                if self.hl_loss:
+                    wp_preds = self.hl_loss.transform_from_probs(wp_probs)
+                else:
+                    bin_weights = 100 * torch.linspace(0, 1, self.n_bins, device=wp_logits.device)
+                    wp_preds = (wp_probs * bin_weights).sum(dim=-1)
+                    
                 predictions.extend(wp_preds.cpu().tolist())
 
         return predictions
@@ -108,6 +150,8 @@ class TransformerTrainer(Trainer):
         batch_size: int,
         n_steps: int,
         n_output_bins: int = 128,
+        loss_type: str = "crossentropy",
+        hlgauss_sigma: float = 10.0,
     ):
         self.embedding_dim = embedding_dim
         self.num_layers = num_layers
@@ -116,6 +160,7 @@ class TransformerTrainer(Trainer):
         self.lr = lr
         self.batch_size = batch_size
         self.n_steps = n_steps
+        self.loss_type = loss_type
         self.device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
         # Vocab: character-level + output bins
@@ -130,27 +175,50 @@ class TransformerTrainer(Trainer):
             max_position_embeddings=MAX_LENGTH,
         )
 
-        self.model = ChessTransformer(n_output_bins, config)
+        # Initialize loss based on type
+        self.hl_loss = None
+        if loss_type == "hlgauss":
+            self.hl_loss = HLGaussLoss(
+                min_value=0.0, 
+                max_value=100.0,
+                num_bins=n_output_bins,
+                sigma=hlgauss_sigma
+            ).to(self.device)
+            logger.info(f"Using HL-Gauss loss with sigma={hlgauss_sigma}")
+        else:
+            logger.info("Using standard cross-entropy loss")
+
+        self.model = ChessTransformer(n_output_bins, config, self.hl_loss)
         if not self.model.parallel:
             self.model.to(self.device)
 
         model_size = sum(p.numel() for p in self.model.parameters())
         logger.info(f"Initialized Transformer model with {model_size // 10**6}M parameters.")
 
-    def _positions_to_tokens(self, positions: list[ChessPosition]) -> list[list[int]]:
-        sequences = []
-        for pos in positions:
-            fen = pos.fen
-
-            wp_token = win_probability_to_token_index(
-                pos.evaluation,
-                self.n_output_bins,
-                first_token_index=128
-            )
-            s = _token_prefix_for_fen(fen) + [wp_token, EOS]
-            assert len(s) == MAX_LENGTH, "Tokenization went over max model's length."
-            sequences.append(s)
-        return torch.tensor(sequences, device=self.device)
+    def _positions_to_tokens(self, positions: list[ChessPosition]):
+        if self.loss_type == "hlgauss":
+            sequences = []
+            targets = []
+            for pos in positions:
+                fen = pos.fen
+                s = _token_prefix_for_fen(fen) + [0, EOS]  
+                assert len(s) == MAX_LENGTH, "Tokenization went over max model's length."
+                sequences.append(s)
+                targets.append(pos.evaluation)
+            return torch.tensor(sequences, device=self.device), torch.tensor(targets, dtype=torch.float32, device=self.device)
+        else:
+            sequences = []
+            for pos in positions:
+                fen = pos.fen
+                wp_token = win_probability_to_token_index(
+                    pos.evaluation,
+                    self.n_output_bins,
+                    first_token_index=128
+                )
+                s = _token_prefix_for_fen(fen) + [wp_token, EOS]
+                assert len(s) == MAX_LENGTH, "Tokenization went over max model's length."
+                sequences.append(s)
+            return torch.tensor(sequences, device=self.device)
 
     def train(
         self,
@@ -165,10 +233,6 @@ class TransformerTrainer(Trainer):
         self.model.train()
         last_loss = None
         initial_step = 0
-
-        # Only compute loss for the next token after SEP.
-        wp_token_mask = torch.zeros((self.batch_size, MAX_LENGTH), dtype=torch.int64, device=self.device)
-        wp_token_mask[:, MAX_LENGTH - 2] = 1
 
         def checkpoint(step: int, path: str):
             torch.save({'steps': step, 'loss': last_loss, 'model': self.model, 'optimizer': optimizer.state_dict()}, path)
@@ -190,10 +254,20 @@ class TransformerTrainer(Trainer):
 
         for step in tqdm(range(initial_step, self.n_steps)):
             batch_indices = torch.randint(0, len(train_positions), (self.batch_size,))
-            batch = self._positions_to_tokens([train_positions[i] for i in batch_indices])
-            y = batch*wp_token_mask + (1 - wp_token_mask) * -100
-            outputs = self.model.forward(batch, labels=y)
-            loss = outputs.loss.mean()
+            
+            if self.loss_type == "hlgauss":
+                batch_seq, batch_targets = self._positions_to_tokens([train_positions[i] for i in batch_indices])
+                outputs = self.model.forward(batch_seq)
+                logits = outputs.logits[:, -2, 128:(128 + self.n_output_bins)]
+                loss = self.hl_loss(logits, batch_targets)
+            else:
+                batch = self._positions_to_tokens([train_positions[i] for i in batch_indices])
+                # Only compute loss for the next token after SEP
+                wp_token_mask = torch.zeros((self.batch_size, MAX_LENGTH), dtype=torch.int64, device=self.device)
+                wp_token_mask[:, MAX_LENGTH - 2] = 1
+                y = batch*wp_token_mask + (1 - wp_token_mask) * -100
+                outputs = self.model.forward(batch, labels=y)
+                loss = outputs.loss.mean()
 
             optimizer.zero_grad()
             loss.backward()

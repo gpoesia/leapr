@@ -10,3 +10,7 @@ num_heads: 8
 batch_size: 128
 n_steps: 20000
 n_output_bins: 128
+
+# Loss config
+loss_type: "hlgauss"     # "crossentropy" or "hlgauss"
+hlgauss_sigma: 0.00586   # σ = 0.75/K by Farebrother et al, with K=128
